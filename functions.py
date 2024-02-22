@@ -1,6 +1,10 @@
 from langchain.embeddings import HuggingFaceEmbeddings
 import numpy as np
 import json
+import pysbd
+from typing import List
+
+seg = pysbd.Segmenter(language="en", clean=False)
 
 def calculate_similarity(question,generated_questions):
     embeddings = HuggingFaceEmbeddings(model_name ="BAAI/bge-base-en")
@@ -24,4 +28,7 @@ def Score(question,generated_question):
         score = 0
     return score
 
-
+def sent_tokenize(text: str):
+    sentences = seg.segment(text)
+    assert isinstance(sentences, list)
+    return sentences

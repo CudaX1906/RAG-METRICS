@@ -13,8 +13,8 @@ from ragas.metrics import (
 )
 from prompts import QUESTION_GEN
 from modules import LLMSRagAsm
-from functions import Score
-from prompts import CONTEXT_PRECISION
+from functions import Score,sent_tokenize
+from prompts import CONTEXT_PRECISION,CONTEXT_RELEVANCE
 
 
 
@@ -24,7 +24,7 @@ app = FastAPI()
 
 l = {}
 @app.get("/")
-async def home():
+def home():
     return  "Evaluation Framework"
 
 #    #    ***************  Answer Relevancy Score **********************
@@ -78,6 +78,29 @@ def  context_precision(items:Item):
     l["context_precision_score"] = score
     return "Context Precision Score"
 
+#    #   *************** Context Relevancy *****************
+
+@app.post("/contextrelevancy")
+def  context_relevancy(items:Item):
+    context_relevancy_prompt = CONTEXT_RELEVANCE.format(question=items.questions[0],context=items.contexts)
+
+    obj = LLMSRagAsm(prompt=context_relevancy_prompt)
+    response = obj.gen().generations[0][0].text
+
+    context = "\n".join(items.contexts[0])
+    context_sents = sent_tokenize(context)
+    indices = (
+            sent_tokenize(response.strip())
+            if response.lower() != "insufficient information."
+            else []
+        )
+        # print(len(indices))
+    if len(context_sents) == 0:
+        l["context_relevancy_score"] =0
+    else:
+        l["context_relevancy_score"] = min(len(indices) / len(context_sents), 1)
+
+    return "Context Relevancy Score"
 
 
 @app.get("/eval/")
