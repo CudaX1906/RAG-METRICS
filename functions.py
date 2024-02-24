@@ -3,6 +3,7 @@ import numpy as np
 import json
 import pysbd
 from typing import List
+from prompts import LONG_FORM_ANSWER_PROMPT,NLI_STATEMENTS_MESSAGE
 
 seg = pysbd.Segmenter(language="en", clean=False)
 
@@ -32,3 +33,30 @@ def sent_tokenize(text: str):
     sentences = seg.segment(text)
     assert isinstance(sentences, list)
     return sentences
+
+def statements_prompt(question,answer):
+    
+    prompt = LONG_FORM_ANSWER_PROMPT.format(question=question,answer=answer)
+    return prompt
+
+def  nli_statements_generation(contexts,statements):
+    
+    context_str = "\n".join(contexts)
+
+    if statements==[]:
+        statements = ["Nill"]
+    
+    statements_str = "\n".join(
+            [f"statement_{i+1}: {st}" for i, st in enumerate(statements)]
+        )
+    prompt = NLI_STATEMENTS_MESSAGE.format(
+    context=context_str, statements=statements_str
+        )
+    
+    return prompt
+
+def convert_json(response):
+    json_form = [
+    json.loads(item) for item in response
+]
+    return json_form
