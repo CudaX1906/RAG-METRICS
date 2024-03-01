@@ -26,8 +26,10 @@ l = {}
 client = None
 @app.on_event( "startup" )
 async def start_up():
-    global client
+    global client,obj,obj1
     client = OpenAI()
+    obj = LLMSRagAsm(client=client)
+    
 
 
 @app.get("/")
@@ -35,7 +37,7 @@ def home():
     return  "Evaluation Framework"
 
 #    #    ***************  Answer Relevancy Score **********************
-@app.post("/answerrelevace/")
+@app.post("/answerrelevance/")
 def ans_relevance(item:Item):
     
     data = {
@@ -46,13 +48,13 @@ def ans_relevance(item:Item):
 
 
     
-    obj = LLMSRag(prompt=QUESTION_GEN.format(answer=data["answer"],context=data["contexts"]))
+    obj1=LLMSRag(prompt=QUESTION_GEN.format(answer=data["answer"],context=data["contexts"]))
     
-    gen = obj.gen().generations[0]
+    gen = obj1.gen().generations[0]
     
     ans_rel = Score(data["question"][0],gen)
     l["AnswerRelevancy"] = ans_rel
-    return "AnswerRelevance Score"
+    return ans_rel
 
 
 
@@ -64,8 +66,8 @@ def  context_precision(items:Item):
     json_respones_str = []
     context_precision_prompt = [CONTEXT_PRECISION.format(question=items.questions[0],context=c,answer=items.answers[0]) for c in items.contexts]
     for i in context_precision_prompt:
-        obj = LLMSRagAsm(prompt=i.prompt_str,client=client)
-        json_respones_str.append(obj.gen())
+        resp = obj.gen(i.prompt_str)
+        json_respones_str.append(resp)
     
     json_responses = [
     json.loads(item) for item in json_respones_str
@@ -85,7 +87,7 @@ def  context_precision(items:Item):
         )
     score = numerator / denominator
     l["context_precision_score"] = score
-    return "Context Precision Score"
+    return score
 
 #    #   *************** Context Relevancy *****************
 
@@ -93,8 +95,7 @@ def  context_precision(items:Item):
 def  context_relevancy(items:Item):
     context_relevancy_prompt = CONTEXT_RELEVANCE.format(question=items.questions[0],context=items.contexts)
 
-    obj = LLMSRagAsm(prompt=context_relevancy_prompt.prompt_str,client=client)
-    response = obj.gen()
+    response = obj.gen(prompt=context_relevancy_prompt.prompt_str)
 
     context = "\n".join(items.contexts[0])
     context_sents = sent_tokenize(context)
@@ -109,33 +110,47 @@ def  context_relevancy(items:Item):
     else:
         l["context_relevancy_score"] = min(len(indices) / len(context_sents), 1)
 
-    return "Context Relevancy Score"
+    return l["context_relevancy_score"]
 
 #    #  ******************** Faithfullness ********************
 @app.post("/faithfulness")
-def faithfullness_score(item:Item):
-    verdict_score_map = {"1": 1, "0": 0, "null": np.nan}
-    question, answer,contexts = item.questions[0], item.answers[0],item.contexts[0]
+def faithfullness_score(item: Item):
+    verdict_score_map = {"1": 1, "0": 0, "Nil": np.nan}
+    question, answer, contexts = item.questions[0], item.answers[0], item.contexts[0]
 
     contexts = "\n".join(contexts)
 
-    prompt = statements_prompt(question=question,answer=answer)
+    prompt = statements_prompt(question=question, answer=answer)
+    response1 = [obj.gen(prompt=prompt.prompt_str)]
+    statements = convert_json(response=response1)[0]["statements"]
 
-    statements = convert_json([LLMSRagAsm(prompt=prompt.prompt_str,client=client).gen()])[0]["statements"]
-
-    prompt2 = nli_statements_generation(contexts=contexts,statements=statements)
-
-    statements_verdicts = convert_json([LLMSRagAsm(prompt=prompt2.prompt_str,client=client).gen()])
+    prompt2 = nli_statements_generation(contexts=contexts, statements=statements)
+    response2 = obj.gen(prompt=prompt2.prompt_str)
+    statements_verdicts = convert_json(response=[response2])
     print(statements_verdicts)
-    faithful_statements = sum(
-    verdict_score_map.get(
-        statement_with_validation.get("verdict", "").lower(), np.nan
-    )
-    for statement_with_validation in statements_verdicts[0].values()
-)
-    score= faithful_statements/len(statements_verdicts[0])
-    l["faith_score"]  = score
-    return score
+    d = []
+    for i in statements_verdicts[0]:
+        d.append(statements_verdicts[0][i])
+    faithful_statements = 0
+    print(d)
+    try:
+        for i in d:
+            if i["verdict"]=='1':
+                faithful_statements = faithful_statements+1
+    except TypeError as e:
+        faithful_statements = 0
+    
+    print(faithful_statements)
+    if faithful_statements and len(statements_verdicts[0]) > 0:
+        score = faithful_statements / len(statements_verdicts[0])
+        # json_friendly_score = json.dumps(score, default=lambda x: str(x) if isinstance(x, np.float64) else x)
+        l["faith_score"] = score
+    else:
+        l["faith_score"] = 0
+
+   
+
+    return l['faith_score']
 
 
 
@@ -143,9 +158,3 @@ def faithfullness_score(item:Item):
 @app.get("/eval/")
 def  evaluate():
     return l
-
-
-
-
-
-

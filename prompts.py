@@ -91,7 +91,7 @@ CONTEXT_RELEVANCE = Prompt(
 
 LONG_FORM_ANSWER_PROMPT = Prompt(
     name="long_form_answer",
-    instruction="Create one or more statements from each sentence in the given answer.Limit the Total number of statements upto to four.provide me output as Json form.",
+    instruction="Create one or more statements from each sentence in the given answer.provide me output as Json form.",
     examples=[
         {
             "question": "Who was  Albert Einstein and what is he best known for?",
@@ -127,7 +127,7 @@ LONG_FORM_ANSWER_PROMPT = Prompt(
 
 NLI_STATEMENTS_MESSAGE = Prompt(
     name="nli_statements",
-    instruction="Natural language inference. Use only 'Yes' (1), 'No' (0) and 'Null' (-1) as verdict.",
+    instruction="Natural language inference. Use only 'Yes' (1), 'No' (0) and 'Nil' (-1) as verdict.Note: You should follow the below answer format.",
     examples=[
         {
             "context": """John is a student at XYZ University. He is pursuing a degree in Computer Science. He is enrolled in several courses this semester, including Data Structures, Algorithms, and Database Management. John is a diligent student and spends a significant amount of time studying and completing assignments. He often stays late in the library to work on his projects.""",

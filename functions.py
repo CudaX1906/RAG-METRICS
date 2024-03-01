@@ -3,8 +3,9 @@ import numpy as np
 import json
 import pysbd
 from typing import List
+from ragas.llms.json_load import json_loader
 from prompts import LONG_FORM_ANSWER_PROMPT,NLI_STATEMENTS_MESSAGE
-
+import requests
 seg = pysbd.Segmenter(language="en", clean=False)
 
 def calculate_similarity(question,generated_questions):
@@ -60,3 +61,13 @@ def convert_json(response):
     json.loads(item) for item in response
 ]
     return json_form
+
+
+def request_metric_api(api_url, data):
+    try:
+        response = requests.post(api_url, json=data)
+        response.raise_for_status()  # Raise an exception for HTTP errors (non-2xx status codes)
+        result = response.json()
+        return result["score"]  # Adjust this based on the actual response format
+    except requests.exceptions.RequestException as e:
+        raise RuntimeError(f"Error calling API: {str(e)}")
