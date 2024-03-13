@@ -1,8 +1,38 @@
 from ragas.llms.prompt import Prompt
+FORMAT_CHECKER_CONVERTER = Prompt(
+    name="format_checker_converter",
+    instruction="""Check if the given input is in the specified format. If not, convert it into the given format. Provide the output as a JSON object with the key "output".""",
+    examples=[
+        {
+            "input": """{"question": "Where was Albert Einstein born?", "noncommittal": 0}""",
+            "output": {"output": [{"question": "Where was Albert Einstein born?", "noncommittal": 0}]},
+        },
+        {
+            "input": """{"question": "What unique ability does the newly discovered species of frog have?", "noncommittal": 0}""",
+            "output": {"output": [{"question": "What unique ability does the newly discovered species of frog have?", "noncommittal": 0}]},
+        },
+        {
+            "input": """{"question": "What is the tallest mountain on Earth?", "noncommittal": 0}""",
+            "output": {"output": [{"question": "What is the tallest mountain on Earth?", "noncommittal": 0}]},
+        },
+        {
+            "input": """{"question": "What was the groundbreaking feature of the smartphone invented in 2023?", "noncommittal": 1}""",
+            "output": {"output": [{"question": "What was the groundbreaking feature of the smartphone invented in 2023?", "noncommittal": 1}]},
+        },
+        {
+            "input": """{"question": "Where was Albert Einstein born?", "noncommittal": 0, "extra_info": "Irrelevant data"}""",
+            "output": {"output": [{"question": "Where was Albert Einstein born?", "noncommittal": 0}]},
+        },
+    ],
+    input_keys=["input"],
+    output_key="output",
+    output_type="json",
+)
 
 QUESTION_GEN = Prompt(
     name="question_generation",
-    instruction="""Generate a question for the given answer and Identify if answer is noncommittal. Give noncommittal as 1 if the answer is noncommittal and 0 if the answer is committal. A noncommittal answer is one that is evasive, vague, or ambiguous. For example, "I don't know" or "I'm not sure" are noncommittal answers.provide me output as Json form.""",
+    instruction="""Generate a question for the given answer and identify if the answer is noncommittal. Provide the output as a JSON object with the key "output". Set the value of "noncommittal" to 1 if the answer is noncommittal and 0 if the answer is committal. A noncommittal answer is one that is evasive, vague, or ambiguous. For example, "I don't know" or "I'm not sure" are noncommittal answers. Provide three different questions as output according to the mentioned format.
+    """,
     examples=[
         {
             "answer": """Albert Einstein was born in Germany.""",
@@ -29,7 +59,7 @@ QUESTION_GEN = Prompt(
             },
         },
         {
-            "answer": """I don't know about the  groundbreaking feature of the smartphone invented in 2023 as am unaware of information beyond 2022. """,
+            "answer": """I don't know about the groundbreaking feature of the smartphone invented in 2023 as am unaware of information beyond 2022. """,
             "context": """In 2023, a groundbreaking invention was announced: a smartphone with a battery life of one month, revolutionizing the way people use mobile technology.""",
             "output": {
                 "question": "What was the groundbreaking feature of the smartphone invented in 2023?",
@@ -91,7 +121,7 @@ CONTEXT_RELEVANCE = Prompt(
 
 LONG_FORM_ANSWER_PROMPT = Prompt(
     name="long_form_answer",
-    instruction="Create one or more statements from each sentence in the given answer.provide me output as Json form.",
+    instruction="Create  more than 4 statements from each sentence in the given answer.provide me output as Json form.",
     examples=[
         {
             "question": "Who was  Albert Einstein and what is he best known for?",
@@ -123,11 +153,18 @@ LONG_FORM_ANSWER_PROMPT = Prompt(
     output_key="statements",
     output_type="JSON",
 )
-
+# LONG_FORM_PROMPT_CHECKER = Prompt(
+#     name="long_form_format"
+#     instruction="Check if the given input is in the specified format. If not, convert it into the given format. Provide the output as a JSON object with the key 'statments'."
+# )
 
 NLI_STATEMENTS_MESSAGE = Prompt(
     name="nli_statements",
-    instruction="Natural language inference. Use only 'Yes' (1), 'No' (0) and 'Nil' (-1) as verdict.Note: You should follow the below answer format.",
+    instruction="""Natural language inference. Use only 'Yes' (1), 'No' (0) and 'Nil' (-1) as verdict.Follow the format below for each statement:
+
+Provide the output as a JSON object with the key 'answer', containing a list of statements, each with 'statement', 'verdict', and 'reason' fields.
+
+""",
     examples=[
         {
             "context": """John is a student at XYZ University. He is pursuing a degree in Computer Science. He is enrolled in several courses this semester, including Data Structures, Algorithms, and Database Management. John is a diligent student and spends a significant amount of time studying and completing assignments. He often stays late in the library to work on his projects.""",
@@ -182,4 +219,24 @@ NLI_STATEMENTS_MESSAGE = Prompt(
     input_keys=["context", "statements"],
     output_key="answer",
     output_type="JSON",
+)
+
+NLI_FORMAT_CHECKER_PROMPT = Prompt(
+    name="format_checker",
+    instruction="""Check if the given input follows the specified format. Provide the output as a JSON object with the key 'answers'. Each answer should have 'statement', 'reason', and 'verdict' fields. Use '1' for 'Yes', '0' for 'No', and '-1' for 'Nil'.""",
+    examples=[
+        {
+            "input": {
+                "answer": [
+                    {"statement_1": "The Abode of Yoga welcomes visitors daily from 8:30 AM CT to 8:00 PM CT.", "reason": "The provided context does not specify the closing time for the Abode of Yoga, only that it opens at 8:30 AM.", "verdict": "0"}
+                ]
+            },
+            "output": {"answers": [
+                {"statement": "The Abode of Yoga welcomes visitors daily from 8:30 AM CT to 8:00 PM CT.", "reason": "The provided context does not specify the closing time for the Abode of Yoga, only that it opens at 8:30 AM.", "verdict": 0}
+            ]},
+        },
+    ],
+    input_keys=["input"],
+    output_key="output",
+    output_type="json",
 )

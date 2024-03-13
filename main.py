@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI,HTTPException
 from typing import List,Dict
 from models import Item ,DatasetInfo
 import asyncio
@@ -14,11 +14,12 @@ from ragas.metrics import (
 from prompts import QUESTION_GEN
 from modules import LLMSRagAsm,LLMSRag
 from functions import Score,sent_tokenize,statements_prompt,nli_statements_generation,convert_json
-from prompts import CONTEXT_PRECISION,CONTEXT_RELEVANCE
+from prompts import CONTEXT_PRECISION,CONTEXT_RELEVANCE,QUESTION_GEN,FORMAT_CHECKER_CONVERTER,NLI_FORMAT_CHECKER_PROMPT
 from openai import OpenAI
+import logging
 
-
-
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 app = FastAPI()
 
@@ -45,49 +46,61 @@ def ans_relevance(item:Item):
         "answer":item.answers,
         "contexts": item.contexts,
     }
-
-
+    # if len(len(item.contexts[0]))==0 or len(item.questions)==0 or len(item.answers)==0:
+    #     return 0
+    prompt = QUESTION_GEN.format(answer = data["answer"],context=data["contexts"])
     
-    obj1=LLMSRag(prompt=QUESTION_GEN.format(answer=data["answer"],context=data["contexts"]))
+    resp = obj.gen(prompt.prompt_str)
+    # print(resp)
+    format_prompt = FORMAT_CHECKER_CONVERTER.format(input=resp)
+    resp_for = obj.gen(format_prompt.prompt_str)
+    resp_json = convert_json(response=[resp_for])
     
-    gen = obj1.gen().generations[0]
-    
-    ans_rel = Score(data["question"][0],gen)
-    l["AnswerRelevancy"] = ans_rel
-    return ans_rel
+    àns_rel = Score(data["question"][0],resp_json)
+    return àns_rel
 
 
 
 #    #   *************** Context Precision ******************************
 
+from fastapi import HTTPException, status
+
+# ... (other imports and code)
+
 @app.post("/contextprecision/")
-def  context_precision(items:Item):
+def context_precision(items: Item):
+    try:
+        score = calculate_context_precision(items)
+        return score
+    except Exception as e:
+        logger.error(f"Error in context_precision route: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal Server Error",
+        )
+
+def calculate_context_precision(items: Item):
     score = np.nan
-    json_respones_str = []
-    context_precision_prompt = [CONTEXT_PRECISION.format(question=items.questions[0],context=c,answer=items.answers[0]) for c in items.contexts]
+    json_responses_str = []
+    context_precision_prompt = []
+
+    for c in items.contexts[0]:
+        context_precision_prompt.append(CONTEXT_PRECISION.format(question=items.questions[0], context=c, answer=items.answers[0]))
+
     for i in context_precision_prompt:
         resp = obj.gen(i.prompt_str)
-        json_respones_str.append(resp)
-    
-    json_responses = [
-    json.loads(item) for item in json_respones_str
-]
-    verdict_list = [
-            int("1" == resp.get("verdict", "").strip())
-            if resp.get("verdict")
-            else np.nan
-            for resp in json_responses
-        ]
+        logger.debug(f"API Response for context_precision: {resp}")
+        json_responses_str.append(resp)
+
+    json_responses = [json.loads(item) for item in json_responses_str]
+
+    verdict_list = [int("1" == resp.get("verdict", "").strip()) if resp.get("verdict") else np.nan for resp in json_responses]
     denominator = sum(verdict_list) + 1e-10
-    numerator = sum(
-            [
-                (sum(verdict_list[: i + 1]) / (i + 1)) * verdict_list[i]
-                for i in range(len(verdict_list))
-            ]
-        )
+    numerator = sum([(sum(verdict_list[: i + 1]) / (i + 1)) * verdict_list[i] for i in range(len(verdict_list))])
     score = numerator / denominator
-    l["context_precision_score"] = score
+
     return score
+
 
 #    #   *************** Context Relevancy *****************
 
@@ -123,26 +136,27 @@ def faithfullness_score(item: Item):
     prompt = statements_prompt(question=question, answer=answer)
     response1 = [obj.gen(prompt=prompt.prompt_str)]
     statements = convert_json(response=response1)[0]["statements"]
-
     prompt2 = nli_statements_generation(contexts=contexts, statements=statements)
     response2 = obj.gen(prompt=prompt2.prompt_str)
-    statements_verdicts = convert_json(response=[response2])
+    prompt3 = NLI_FORMAT_CHECKER_PROMPT.format(input=response2)
+    resp_format = obj.gen(prompt=prompt3.prompt_str)
+    statements_verdicts = convert_json(response=[resp_format])
     print(statements_verdicts)
-    d = []
-    for i in statements_verdicts[0]:
-        d.append(statements_verdicts[0][i])
+    # d = []
+    
+    #     d.append(statements_verdicts[0][i])
     faithful_statements = 0
-    print(d)
+    # print(d)
     try:
-        for i in d:
-            if i["verdict"]=='1':
+        for i in statements_verdicts[0]["answers"]:
+            if i["verdict"]==1:
                 faithful_statements = faithful_statements+1
     except TypeError as e:
         faithful_statements = 0
     
-    print(faithful_statements)
-    if faithful_statements and len(statements_verdicts[0]) > 0:
-        score = faithful_statements / len(statements_verdicts[0])
+    # print(faithful_statements)
+    if faithful_statements and len(statements_verdicts[0]["answers"]) > 0:
+        score = faithful_statements / len(statements_verdicts[0]["answers"])
         # json_friendly_score = json.dumps(score, default=lambda x: str(x) if isinstance(x, np.float64) else x)
         l["faith_score"] = score
     else:

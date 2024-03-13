@@ -7,7 +7,7 @@ class LLMSRagAsm():
         self.client = client  
 
     def gen(self,prompt):
-        completion = self.client.chat.completions.create(model="gpt-4-0125-preview", messages=[{"role": "user", "content": prompt}],response_format={ "type": "json_object" },temperature = 0.1)
+        completion = self.client.chat.completions.create(model="gpt-4-0125-preview", messages=[{"role": "user", "content": prompt}],response_format={ "type": "json_object" },temperature = 0)
         return completion.choices[0].message.content
 
 

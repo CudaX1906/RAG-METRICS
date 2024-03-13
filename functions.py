@@ -17,13 +17,22 @@ def calculate_similarity(question,generated_questions):
 
 def Score(question,generated_question):
     gen = []
-    for i in generated_question:
-        gen.append(i.text)
-    print(gen)
-    gen_questions = [json.loads(item)["question"] for item in gen]
-    # committal = 
-    committal = [True if json.loads(item)["noncommittal"] == "0" else False for item in gen]
+    # for i in generated_question:
+    #     gen.append(i.text)
+    print(generated_question)
+    gen_questions = []
+    # gen_questions = [json.loads(item)[0]["question"] for item in generated_question]
+    # # committal = 
+    # committal = [True if json.loads(item)[0]["noncommittal"] == "0" else False for item in generated_question]
+    committal = []
+    
+    for item in generated_question[0]["output"]:
+        print(item)
+        if item["noncommittal"] == 0:
+            gen_questions.append(item["question"])
+            committal.append(True)
 
+    print(gen_questions)
     if len(committal)!=0:
         score = calculate_similarity(question,gen_questions).mean()
     else:
@@ -66,8 +75,8 @@ def convert_json(response):
 def request_metric_api(api_url, data):
     try:
         response = requests.post(api_url, json=data)
-        response.raise_for_status()  # Raise an exception for HTTP errors (non-2xx status codes)
+        response.raise_for_status()
         result = response.json()
-        return result["score"]  # Adjust this based on the actual response format
+        return result
     except requests.exceptions.RequestException as e:
         raise RuntimeError(f"Error calling API: {str(e)}")
