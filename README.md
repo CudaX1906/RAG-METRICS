@@ -1,4 +1,4 @@
-# Testing Framework 
+# Testing Framework with RAGAS Integration
 
 Welcome to the testing framework repository! This project is a comprehensive testing solution built on top of the RAGAS framework, utilizing FastAPI for the server-side and Streamlit for the client-side interface.
 
@@ -36,6 +36,9 @@ streamlit run class.py
 
 This command launches the Streamlit application, providing a user-friendly interface for interacting with the testing framework.
 
+### Using APIs Separately
+
+If you prefer to use the APIs separately, follow the input format mentioned in the `models.py` file.
 ## Environmental Variables
 
 Before running the commands mentioned above, ensure that you have set up your OpenAI API key as an environmental variable. This key is necessary for accessing the OpenAI API functionalities within the framework.
