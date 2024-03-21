@@ -6,7 +6,7 @@ import uuid
 import requests
 
 # Initialize load_model attribute
-st.session_state.load_model = joblib.load('logistic_regression_model.pkl')
+st.session_state.load_model = joblib.load('xgb_classifier_latest.pkl')
 
 def extract_reference_text(input_text):
     pattern = r'Reference\s+ID\s+(\d+):\s*(.*?)(?=(?:Reference\s+ID\s+\d+|$|\-{3}))'
@@ -44,9 +44,9 @@ if question:
         input_data = {
                 "questions": [question],
                 "contexts": [contexts],
-                "answers": [bot_response[0]["text"]]
+                "answers": [bot_response[0]["text"]],
             }
-        
+        st.write(input_data["contexts"])
         answer_relevancy_Score = request_metric_api("http://127.0.0.1:8000/answerrelevance/", input_data)
         context_utilization_score = request_metric_api("http://127.0.0.1:8000/contextprecision/", input_data)
         context_relevancy =  request_metric_api("http://127.0.0.1:8000/contextrelevancy/", input_data)
@@ -56,6 +56,7 @@ if question:
         st.write(f"Context Utilization Score :{context_utilization_score}")
         st.write(f"Context Relevancy Score :{context_relevancy}")
         st.write(f"Faithfulness Score :{faithfulness_score}")
+        
         st.write(input_data["answers"])
         response = st.session_state.load_model.predict([[answer_relevancy_Score,context_utilization_score,context_relevancy,faithfulness_score]])
         if response==1:

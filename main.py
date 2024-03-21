@@ -1,5 +1,6 @@
 from fastapi import FastAPI,HTTPException
-from typing import List,Dict
+
+import typing as t
 from models import Item ,DatasetInfo
 import asyncio
 import pickle
@@ -11,6 +12,8 @@ import json
 from ragas.metrics import (
     faithfulness,
 )
+from fastapi import HTTPException, status
+
 from prompts import QUESTION_GEN
 from modules import LLMSRagAsm,LLMSRag
 from functions import Score,sent_tokenize,statements_prompt,nli_statements_generation,convert_json
@@ -27,7 +30,7 @@ l = {}
 client = None
 @app.on_event( "startup" )
 async def start_up():
-    global client,obj,obj1
+    global client,obj
     client = OpenAI()
     obj = LLMSRagAsm(client=client)
     
@@ -63,9 +66,7 @@ def ans_relevance(item:Item):
 
 #    #   *************** Context Precision ******************************
 
-from fastapi import HTTPException, status
 
-# ... (other imports and code)
 
 @app.post("/contextprecision/")
 def context_precision(items: Item):
@@ -93,12 +94,16 @@ def calculate_context_precision(items: Item):
         json_responses_str.append(resp)
 
     json_responses = [json.loads(item) for item in json_responses_str]
-
+    
+    json_responses = t.cast(t.List[t.Dict], json_responses)
+    json_responses = [
+            item if isinstance(item, dict) else {} for item in json_responses
+        ]
     verdict_list = [int("1" == resp.get("verdict", "").strip()) if resp.get("verdict") else np.nan for resp in json_responses]
     denominator = sum(verdict_list) + 1e-10
     numerator = sum([(sum(verdict_list[: i + 1]) / (i + 1)) * verdict_list[i] for i in range(len(verdict_list))])
     score = numerator / denominator
-
+    
     return score
 
 
